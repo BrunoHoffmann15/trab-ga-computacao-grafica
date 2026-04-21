@@ -35,6 +35,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 int setupShader();
 int setupWireframeShader();
 int loadSimpleOBJ(string filePATH, int &nVertices, int r, int g, int b);
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 
 // Dimensões da janela (pode ser alterado em tempo de execução)
 const GLuint WIDTH = 600, HEIGHT = 600;
@@ -106,6 +107,13 @@ struct Mesh
 	glm::vec3 scale; 
 	int nVertices;
 };
+
+// Posição inicial no centro da tela
+float lastX = WIDTH / 2.0f;  // 300.0f
+float lastY = HEIGHT / 2.0f; // 300.0f
+bool firstMouse = true;
+
+void cameraHandler(GLFWwindow* window, Camera &camera, float deltaTime);
 
 // Definição da função de renderização dos meshes.
 void renderMeshes(std::vector<Mesh> &meshes, GLuint shaderID);
@@ -210,6 +218,12 @@ int main()
 
 	meshes.push_back(m2);
 
+	// No seu main(), ANTES do loop de renderização:
+	glfwSetCursorPosCallback(window, mouse_callback);
+
+	// Opcional, mas recomendado para jogos FPS: prende o cursor dentro da janela e o esconde
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
 	// Loop da aplicação - "game loop"
 	while (!glfwWindowShouldClose(window))
 	{
@@ -235,10 +249,7 @@ int main()
 		glUniformMatrix4fv(glGetUniformLocation(shaderID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
 		// Configuração da movimentação da câmera via teclado (IKJL).
-		if(glfwGetKey(window,GLFW_KEY_I) == GLFW_PRESS) camera.processKeyboard("FORWARD",deltaTime);
-		if(glfwGetKey(window,GLFW_KEY_K) == GLFW_PRESS) camera.processKeyboard("BACKWARD",deltaTime);
-		if(glfwGetKey(window,GLFW_KEY_J) == GLFW_PRESS) camera.processKeyboard("LEFT",deltaTime);
-		if(glfwGetKey(window,GLFW_KEY_L) == GLFW_PRESS) camera.processKeyboard("RIGHT",deltaTime);
+		cameraHandler(window, camera, deltaTime);
 
 		// Configurações das transformação dos objetos.
 		if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
@@ -290,6 +301,55 @@ int main()
 	// Finaliza a execução da GLFW, limpando os recursos alocados por ela
 	glfwTerminate();
 	return 0;
+}
+
+void cameraHandler(GLFWwindow* window, Camera &camera, float deltaTime)
+{
+	// Configuração da movimentação da câmera via teclado (IKJL).
+	if(glfwGetKey(window,GLFW_KEY_I) == GLFW_PRESS) camera.processKeyboard("FORWARD",deltaTime);
+	if(glfwGetKey(window,GLFW_KEY_K) == GLFW_PRESS) camera.processKeyboard("BACKWARD",deltaTime);
+	if(glfwGetKey(window,GLFW_KEY_J) == GLFW_PRESS) camera.processKeyboard("LEFT",deltaTime);
+	if(glfwGetKey(window,GLFW_KEY_L) == GLFW_PRESS) camera.processKeyboard("RIGHT",deltaTime);
+
+	double xpos, ypos;
+	glfwGetCursorPos(window, &xpos, &ypos);
+
+	if (firstMouse)
+	{
+		lastX = xpos;
+		lastY = ypos;
+		firstMouse = false;
+	}
+
+	float xoffset = xpos - lastX;
+	float yoffset = lastY - ypos;
+
+	lastX = xpos;
+	lastY = ypos;
+
+	camera.processMouseMovement(xoffset, yoffset, true);
+}
+
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
+{
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
+
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // Invertido, pois as coordenadas Y vão do topo (0) para baixo (HEIGHT)
+
+    lastX = xpos;
+    lastY = ypos;
+
+    // Supondo que sua instância de câmera se chame 'camera'
+    camera.processMouseMovement(xoffset, yoffset);
 }
 
 void applyTransform(Mesh &mesh, bool shouldGoUp)

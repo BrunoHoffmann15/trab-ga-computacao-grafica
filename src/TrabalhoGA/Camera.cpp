@@ -1,7 +1,7 @@
 #include "Camera.h"
 
 Camera::Camera(glm::vec3 startPos, glm::vec3 startUp, float startYaw, float startPitch) :
-front(glm::vec3(0.0,0.0,1.0)), movementSpeed(2.5f), mouseSensitivity(0.1f)
+front(glm::vec3(0.0,0.0,1.0)), movementSpeed(2.5f), mouseSensitivity(0.01f)
 {
     position = startPos;
     worldUp = startUp;
@@ -26,6 +26,25 @@ void Camera::processKeyboard(const std::string &direction, float deltaTime)
 
 void Camera::processMouseMovement(float xoffset, float yoffset, bool constrainPitch)
 {
+    // 1. Aplica a sensibilidade da câmera
+    xoffset *= mouseSensitivity;
+    yoffset *= mouseSensitivity;
+
+    // 2. Adiciona os offsets aos ângulos atuais
+    yaw   += xoffset;
+    pitch += yoffset;
+
+    // 3. Trava o eixo Pitch para evitar que a tela vire de ponta cabeça
+    if (constrainPitch)
+    {
+        if (pitch > 89.0f)
+            pitch = 89.0f;
+        if (pitch < -89.0f)
+            pitch = -89.0f;
+    }
+
+    // 4. Atualiza os vetores Front, Right e Up usando a função que você já criou
+    updateCameraVectors();
 }
 
 void Camera::updateCameraVectors()
