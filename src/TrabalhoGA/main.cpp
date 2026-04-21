@@ -90,8 +90,9 @@ void main()
 )glsl";
 
 // Definindo variáveis globais para controle de transformações.
-bool axisX=true, axisY=false, axisZ=false, rotateEnabled = true, scale = false, translade = false;
+bool axisX=true, axisY=false, axisZ=false, rotateEnabled = true, scale = false, translade = false, perspective = true;
 int active_mesh = 0; //mesh selecionado para transformação (0 ou 1)
+
 
 //Instanciação da Camera
 Camera camera(glm::vec3(0.0, 0.0, -5.0), glm::vec3(0.0,1.0,0.0),90.0,0.0);
@@ -189,7 +190,6 @@ int main()
 	
     glm::mat4 projection = glm::perspective(glm::radians(45.0f),(float)WIDTH/(float)HEIGHT,0.1f,100.0f);
     glUniformMatrix4fv(glGetUniformLocation(shaderID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-	
     
     // Matriz de view
     glm::mat4 view = glm::lookAt(glm::vec3(0,0,-3), glm::vec3(0,0,0), glm::vec3(0,1,0));
@@ -245,7 +245,12 @@ int main()
 		glPointSize(10);
 
 		// Configuração da projeção.
-		projection = glm::perspective(glm::radians(45.0f),(float)WIDTH/(float)HEIGHT,0.1f,100.0f);
+		if (perspective) {
+			projection = glm::perspective(glm::radians(45.0f),(float)WIDTH/(float)HEIGHT,0.1f,100.0f);
+		} else {
+			projection = glm::ortho(-3.0, 3.0, -3.0, 3.0, 0.1, 100.0);
+		}
+		
 		glUniformMatrix4fv(glGetUniformLocation(shaderID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
 		// Configuração da movimentação da câmera via teclado (IKJL).
@@ -432,6 +437,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GL_TRUE);
+
+	if (key == GLFW_KEY_P && action == GLFW_PRESS) {
+		perspective = !perspective;
+	}
 
 	if (key == GLFW_KEY_S && action == GLFW_PRESS)
 	{
