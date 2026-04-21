@@ -4,7 +4,7 @@
 
 **Estrutura Inicial**
 
-[ ] Estruturar o trabalho;
+[x] Estruturar o trabalho;
 
 **Leitura do .obj**
 
