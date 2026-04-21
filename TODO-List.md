@@ -30,11 +30,11 @@
 
 **Câmera**
 
-[ ] Possibilitar a troca das visões da câmera entre perspectiva e ortográfica;
+[x] Possibilitar a troca das visões da câmera entre perspectiva e ortográfica;
 
-[ ] Possibilitar a movimentação da câmera - frente, trás, esquerda, direita;
+[x] Possibilitar a movimentação da câmera - frente, trás, esquerda, direita;
 
-[ ] Possibilitar a movimentação da câmera - rotacionar para direita, para esquerda, para cima e para baixo;
+[x] Possibilitar a movimentação da câmera - rotacionar para direita, para esquerda, para cima e para baixo;
 
 **Iluminação**
 
