@@ -38,10 +38,10 @@
 
 **Iluminação**
 
-[ ] Modelo de Iluminação: implementação do modelo de Phong (Ambiente, Difusa e Especular) nos
+[x] Modelo de Iluminação: implementação do modelo de Phong (Ambiente, Difusa e Especular) nos
 Shaders
 
-[ ] Fonte de Luz: pelo menos uma fonte de luz pontual configurável na cena.
+[x] Fonte de Luz: pelo menos uma fonte de luz pontual configurável na cena.
 
 [ ] Superfície: as propriedades de refletância do material (ka, kd e ks) devem ser configuráveis
 manualmente.

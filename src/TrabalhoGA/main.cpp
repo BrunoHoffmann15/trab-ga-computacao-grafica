@@ -104,6 +104,7 @@ void main()
 
 // Definindo variáveis globais para controle de transformações.
 bool axisX=true, axisY=false, axisZ=false, rotateEnabled = true, scale = false, translade = false, perspective = true;
+bool moveLight = false;
 int active_mesh = 0; //mesh selecionado para transformação (0 ou 1)
 
 
@@ -122,12 +123,19 @@ struct Mesh
 	int nVertices;
 };
 
+struct Light {
+	glm::vec3 position;
+	glm::vec3 color;
+};
+
 // Posição inicial no centro da tela
 float lastX = WIDTH / 2.0f;  // 300.0f
 float lastY = HEIGHT / 2.0f; // 300.0f
 bool firstMouse = true;
 
 void cameraHandler(GLFWwindow* window, Camera &camera, float deltaTime);
+
+void applyLightChange(GLFWwindow* window, Light &light, bool shouldGoUp);
 
 // Definição da função de renderização dos meshes.
 void renderMeshes(std::vector<Mesh> &meshes, GLuint shaderID);
@@ -237,12 +245,9 @@ int main()
 	glUniform1f(glGetUniformLocation(shaderID, "ks"),ks);
 	glUniform1f(glGetUniformLocation(shaderID, "q"),q);
 
-
-	glm::vec3 lightPos = glm::vec3(-0.5, 1.0, 0.0);
-	glUniform3f(glGetUniformLocation(shaderID, "lightPos"),lightPos.x,lightPos.y,lightPos.z);
-	
-	glm::vec3 lightColor = glm::vec3(1.0, 1.0, 1.0);
-	glUniform3f(glGetUniformLocation(shaderID, "lightColor"),lightColor.x,lightColor.y,lightColor.z);
+	Light light;
+	light.position = glm::vec3(-0.5, 1.0, 0.0);
+	light.color = glm::vec3(1.0, 1.0, 1.0);
 
 	// No seu main(), ANTES do loop de renderização:
 	glfwSetCursorPosCallback(window, mouse_callback);
@@ -285,12 +290,19 @@ int main()
 		// Configurações das transformação dos objetos.
 		if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
 			applyTransform(meshes[active_mesh], true);
+			applyLightChange(window, light, true);
 		}
 
 		// Configurações das transformação dos objetos.
 		if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
 			applyTransform(meshes[active_mesh], false);
+			applyLightChange(window, light, false);
 		}
+
+		// Mandando a posição da luz para o sharder.
+		glUniform3f(glGetUniformLocation(shaderID, "lightPos"),light.position.x,light.position.y,light.position.z);
+		glUniform3f(glGetUniformLocation(shaderID, "lightColor"),light.color.x,light.color.y,light.color.z);
+
         
 		glUniformMatrix4fv(glGetUniformLocation(shaderID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 		
@@ -370,6 +382,19 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     camera.processMouseMovement(xoffset, yoffset);
 }
 
+void applyLightChange(GLFWwindow* window, Light &light, bool shouldGoUp)
+{
+	float delta = 0.1f * (shouldGoUp ? 1 : -1);
+	if (moveLight) {
+		if (axisX)
+			light.position.x += delta;
+		if (axisY)
+			light.position.y += delta;
+		if (axisZ)
+			light.position.z += delta;
+	}
+}
+
 void applyTransform(Mesh &mesh, bool shouldGoUp)
 {
 	if (rotateEnabled) { // Caso de rotação.
@@ -377,7 +402,7 @@ void applyTransform(Mesh &mesh, bool shouldGoUp)
 	}
 	else if (scale) { // Caso de escalar.
 		scaleMesh(mesh, shouldGoUp);
-	} else { // Caso de translação.
+	} else if (translade) { // Caso de translação.
 		transladeMesh(mesh, shouldGoUp);
 	}
 }
@@ -455,23 +480,33 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		perspective = !perspective;
 	}
 
-	if (key == GLFW_KEY_E && action == GLFW_PRESS)
+	if (key == GLFW_KEY_1 && action == GLFW_PRESS)
 	{
 		scale = true;
 		rotateEnabled = false;
 		translade = false;
+		moveLight = false;
 	}
-	if (key == GLFW_KEY_R && action == GLFW_PRESS)
+	if (key == GLFW_KEY_2 && action == GLFW_PRESS)
 	{
 		scale = false;
 		rotateEnabled = true;
 		translade = false;
+		moveLight = false;
 	}
-	if (key == GLFW_KEY_T && action == GLFW_PRESS)
+	if (key == GLFW_KEY_3 && action == GLFW_PRESS)
 	{
 		scale = false;
 		rotateEnabled = false;
 		translade = true;
+		moveLight = false;
+	}
+	if (key == GLFW_KEY_4 && action == GLFW_PRESS)
+	{
+		scale = false;
+		rotateEnabled = false;
+		translade = false;
+		moveLight = true;
 	}
 	if (key == GLFW_KEY_X && action == GLFW_PRESS)
 	{
@@ -496,14 +531,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		axisX = true;
 		axisY = true;
 		axisZ = true;
-	}
-	if ((key == GLFW_KEY_1 || key == GLFW_KEY_KP_1) && action == GLFW_PRESS)
-	{
-		active_mesh = 0;
-	}
-	if ((key == GLFW_KEY_2 || key == GLFW_KEY_KP_2) && action == GLFW_PRESS)
-	{
-		active_mesh = 1;
 	}
 	if (key == GLFW_KEY_N && action == GLFW_PRESS) {
 		active_mesh = (active_mesh + 1) % 2;
