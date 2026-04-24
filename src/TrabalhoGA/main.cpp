@@ -104,7 +104,7 @@ void main()
 
 // Definindo variáveis globais para controle de transformações.
 bool axisX=true, axisY=false, axisZ=false, rotateEnabled = true, scale = false, translade = false, perspective = true;
-bool moveLight = false;
+bool moveLight = false, changeKa = false, changeKd = false, changeKs = false, changeQ = false;
 int active_mesh = 0; //mesh selecionado para transformação (0 ou 1)
 
 
@@ -123,9 +123,11 @@ struct Mesh
 	int nVertices;
 };
 
+// Estrutura Light para controle da luz.
 struct Light {
 	glm::vec3 position;
 	glm::vec3 color;
+	float ka, kd, ks;
 };
 
 // Posição inicial no centro da tela
@@ -240,14 +242,13 @@ int main()
 
 	// Mandando as infos de iluminação para o shader
 	float ka = 0.2, kd = 0.5, ks = 0.5, q = 10.0;
-	glUniform1f(glGetUniformLocation(shaderID, "ka"),ka);
-	glUniform1f(glGetUniformLocation(shaderID, "kd"),kd);
-	glUniform1f(glGetUniformLocation(shaderID, "ks"),ks);
-	glUniform1f(glGetUniformLocation(shaderID, "q"),q);
 
 	Light light;
 	light.position = glm::vec3(-0.5, 1.0, 0.0);
 	light.color = glm::vec3(1.0, 1.0, 1.0);
+	light.ka = ka;
+	light.kd = kd;
+	light.ks = ks;
 
 	// No seu main(), ANTES do loop de renderização:
 	glfwSetCursorPosCallback(window, mouse_callback);
@@ -287,21 +288,27 @@ int main()
 		// Configuração da movimentação da câmera via teclado (IKJL).
 		cameraHandler(window, camera, deltaTime);
 
-		// Configurações das transformação dos objetos.
+		// Configurações das transformação dos objetos e da luz.
 		if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
 			applyTransform(meshes[active_mesh], true);
 			applyLightChange(window, light, true);
 		}
 
-		// Configurações das transformação dos objetos.
+		// Configurações das transformação dos objetos e da luz.
 		if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
 			applyTransform(meshes[active_mesh], false);
 			applyLightChange(window, light, false);
 		}
 
-		// Mandando a posição da luz para o sharder.
+		// Mandando a posição da luz para o shader.
 		glUniform3f(glGetUniformLocation(shaderID, "lightPos"),light.position.x,light.position.y,light.position.z);
 		glUniform3f(glGetUniformLocation(shaderID, "lightColor"),light.color.x,light.color.y,light.color.z);
+
+		// Mandando variáveis de iluminação para o shader.
+		glUniform1f(glGetUniformLocation(shaderID, "ka"),light.ka);
+		glUniform1f(glGetUniformLocation(shaderID, "kd"),light.kd);
+		glUniform1f(glGetUniformLocation(shaderID, "ks"),light.ks);
+		glUniform1f(glGetUniformLocation(shaderID, "q"),q);
 
         
 		glUniformMatrix4fv(glGetUniformLocation(shaderID, "model"), 1, GL_FALSE, glm::value_ptr(model));
@@ -385,6 +392,7 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 void applyLightChange(GLFWwindow* window, Light &light, bool shouldGoUp)
 {
 	float delta = 0.1f * (shouldGoUp ? 1 : -1);
+
 	if (moveLight) {
 		if (axisX)
 			light.position.x += delta;
@@ -392,6 +400,21 @@ void applyLightChange(GLFWwindow* window, Light &light, bool shouldGoUp)
 			light.position.y += delta;
 		if (axisZ)
 			light.position.z += delta;
+	}
+
+	if (changeKa) {
+		light.ka += delta * 0.1f;
+		if (light.ka < 0.0f) light.ka = 0.0f; // Evita valores negativos
+	}
+
+	if (changeKd) {
+		light.kd += delta * 0.1f;
+		if (light.kd < 0.0f) light.kd = 0.0f; // Evita valores negativos
+	}
+
+	if (changeKs) {
+		light.ks += delta * 0.1f;
+		if (light.ks < 0.0f) light.ks = 0.0f; // Evita valores negativos
 	}
 }
 
@@ -480,34 +503,44 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		perspective = !perspective;
 	}
 
+	// Modifica a opção a ser realizada com as setas (transformação, movimento da luz, aumento de k, d, ks ou q)
 	if (key == GLFW_KEY_1 && action == GLFW_PRESS)
 	{
 		scale = true;
-		rotateEnabled = false;
-		translade = false;
-		moveLight = false;
+		rotateEnabled = translade = moveLight = changeKa = changeKd = changeKs = changeQ= false;
 	}
 	if (key == GLFW_KEY_2 && action == GLFW_PRESS)
 	{
-		scale = false;
 		rotateEnabled = true;
-		translade = false;
-		moveLight = false;
+		translade = scale = moveLight = changeKa = changeKd = changeKs = changeQ = false;
 	}
 	if (key == GLFW_KEY_3 && action == GLFW_PRESS)
 	{
-		scale = false;
-		rotateEnabled = false;
+		scale = moveLight = rotateEnabled = changeKa = changeKd = changeKs = changeQ = false;
 		translade = true;
-		moveLight = false;
 	}
 	if (key == GLFW_KEY_4 && action == GLFW_PRESS)
 	{
-		scale = false;
-		rotateEnabled = false;
-		translade = false;
+		scale = rotateEnabled = translade = changeKa = changeKd = changeKs = changeQ = false;
 		moveLight = true;
 	}
+	if (key == GLFW_KEY_5 && action == GLFW_PRESS)
+	{
+		scale = rotateEnabled = translade = moveLight = changeKd = changeKs = changeQ = false;
+		changeKa = true;
+	}
+	if (key == GLFW_KEY_6 && action == GLFW_PRESS)
+	{
+		scale = rotateEnabled = translade = moveLight = changeKa = changeKs = changeQ = false;
+		changeKd = true;
+	}
+	if (key == GLFW_KEY_7 && action == GLFW_PRESS)
+	{
+		scale = rotateEnabled = translade = moveLight = changeKa = changeKd = changeQ = false;
+		changeKs = true;
+	}
+
+	// Modifica os eixos a serem considerados para as transformações e para o movimento da luz.
 	if (key == GLFW_KEY_X && action == GLFW_PRESS)
 	{
 		axisX = true;
@@ -532,6 +565,8 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		axisY = true;
 		axisZ = true;
 	}
+
+	// Muda o mesh ativo para transformação (tecla N) - só tem 2 meshes, então alterna entre 0 e 1
 	if (key == GLFW_KEY_N && action == GLFW_PRESS) {
 		active_mesh = (active_mesh + 1) % 2;
 	}

@@ -16,17 +16,17 @@
 
 **Controle dos Objetos**
 
-[ ] Mostrar objetos em tela;
+[x] Mostrar objetos em tela;
 
-[ ] Possibilitar a adição de mais de um objeto;
+[x] Possibilitar a adição de mais de um objeto;
 
-[ ] Seleção: interface via teclado para alternar o objeto selecionado;
+[x] Seleção: interface via teclado para alternar o objeto selecionado;
 
-[ ] Possibilitar a rotação nos eixos x, y, z do objeto selecionado;
+[x] Possibilitar a rotação nos eixos x, y, z do objeto selecionado;
 
-[ ] Possibilitar a Translação nos eixos X, Y e Z do objeto selecionado;
+[x] Possibilitar a Translação nos eixos X, Y e Z do objeto selecionado;
 
-[ ] Possibilitar a escala uniforme e por eixos (X, Y, Z) para o objeto selecionado;
+[x] Possibilitar a escala uniforme e por eixos (X, Y, Z) para o objeto selecionado;
 
 **Câmera**
 
@@ -43,7 +43,7 @@ Shaders
 
 [x] Fonte de Luz: pelo menos uma fonte de luz pontual configurável na cena.
 
-[ ] Superfície: as propriedades de refletância do material (ka, kd e ks) devem ser configuráveis
+[x] Superfície: as propriedades de refletância do material (ka, kd e ks) devem ser configuráveis
 manualmente.
 
 [ ] Modos de visualização: sólido (com iluminação aplicada) e desenho de wireframe sobreposto à
