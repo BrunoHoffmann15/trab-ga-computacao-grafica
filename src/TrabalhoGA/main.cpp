@@ -33,8 +33,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 // Protótipos das funções
 int setupShader();
-int setupWireframeShader();
-int loadSimpleOBJ(string filePATH, int &nVertices, int r, int g, int b);
+int loadSimpleOBJ(string filePATH, int &nVertices);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 
 // Dimensões da janela (pode ser alterado em tempo de execução)
@@ -44,50 +43,64 @@ const GLuint WIDTH = 600, HEIGHT = 600;
 const GLchar* vertexShaderSource = R"glsl(#version 450
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 color;
+layout (location = 2) in vec3 normal;
 uniform mat4 model;
 uniform mat4 projection;
 uniform mat4 view;
 out vec4 finalColor;
+out vec3 fragPos;
+out vec3 scaledNormal;
 void main()
 {
 gl_Position = projection * view * model * vec4(position, 1.0);
 finalColor = vec4(color, 1.0);
+fragPos = vec3(model * vec4(position, 1.0)); 
+scaledNormal = vec3(model * vec4(normal, 1.0));
 }
 )glsl";
 
 // Código fonte do Fragment Shader (em GLSL)
 const GLchar* fragmentShaderSource = R"glsl(#version 450
 in vec4 finalColor;
+in vec3 fragPos;
+in vec3 scaledNormal;
+
+// Propriedades da superfície/material
+uniform float ka;
+uniform float kd;
+uniform float ks, q;
+
+// Propriedades da fonte de luz
+uniform vec3 lightPos;
+uniform vec3 lightColor;
+
+// Posicao da camera
+uniform vec3 cameraPos;
+
 out vec4 color;
 
 void main()
 {
-    color = finalColor;
+	// Parcela da luz ambiente
+	vec3 ambient = ka * lightColor;
+
+	// Parcela da reflexão difusa
+	vec3 N = normalize(scaledNormal);
+	vec3 L = normalize(lightPos - fragPos);
+	float diff = max(dot(N,L),0.0);
+	vec3 diffuse = kd * diff * lightColor;
+
+	//Coeficiente de reflexão especular
+	vec3 R = normalize(reflect(-L,N));
+	vec3 V = normalize(cameraPos - vec3(fragPos));
+	float spec = max(dot(R,V),0.0);
+	spec = pow(spec,q);
+	vec3 specular = ks * spec * lightColor;
+
+    color = (vec4(ambient,1) + vec4(diffuse,1))*finalColor + vec4(specular,1);
 }
 )glsl";
 
-// Wireframe Vertex Shader
-const GLchar* wireframeVertexShaderSource = R"glsl(#version 450
-layout (location = 0) in vec3 position;
-layout (location = 1) in vec3 color;
-uniform mat4 model;
-uniform mat4 projection;
-uniform mat4 view;
-void main()
-{
-gl_Position = projection * view * model * vec4(position, 1.0);
-}
-)glsl";
-
-// Wireframe Fragment Shader (black lines)
-const GLchar* wireframeFragmentShaderSource = R"glsl(#version 450
-out vec4 color;
-
-void main()
-{
-    color = vec4(0.0, 0.0, 0.0, 1.0);
-}
-)glsl";
 
 // Definindo variáveis globais para controle de transformações.
 bool axisX=true, axisY=false, axisZ=false, rotateEnabled = true, scale = false, translade = false, perspective = true;
@@ -175,7 +188,6 @@ int main()
 
 	// Compilando e buildando o programa de shader
 	GLuint shaderID = setupShader();
-	GLuint wireframeShaderID = setupWireframeShader();
 
 	glUseProgram(shaderID);
 
@@ -202,7 +214,7 @@ int main()
 
 	Mesh m1;
 
-	m1.VAO = loadSimpleOBJ("../assets/Suzanne.obj",m1.nVertices, 1, 0, 1);
+	m1.VAO = loadSimpleOBJ("../assets/Suzanne.obj",m1.nVertices);
 	m1.position = glm::vec3(-0.8, 0.0, 0.0);
 	m1.rotation = glm::vec3(0.0, 180.0, 0.0);
 	m1.scale = glm::vec3(0.5, 0.5, 0.5);
@@ -211,12 +223,26 @@ int main()
 
 	Mesh m2;
 
-	m2.VAO = loadSimpleOBJ("../assets/Suzanne.obj",m2.nVertices, 0, 1, 1);
+	m2.VAO = loadSimpleOBJ("../assets/Suzanne.obj",m2.nVertices);
 	m2.position = glm::vec3(0.8, 0.0, 0.0);
 	m2.rotation = glm::vec3(0.0, 180.0, 0.0);
 	m2.scale = glm::vec3(0.5, 0.5, 0.5);
 
 	meshes.push_back(m2);
+
+	// Mandando as infos de iluminação para o shader
+	float ka = 0.2, kd = 0.5, ks = 0.5, q = 10.0;
+	glUniform1f(glGetUniformLocation(shaderID, "ka"),ka);
+	glUniform1f(glGetUniformLocation(shaderID, "kd"),kd);
+	glUniform1f(glGetUniformLocation(shaderID, "ks"),ks);
+	glUniform1f(glGetUniformLocation(shaderID, "q"),q);
+
+
+	glm::vec3 lightPos = glm::vec3(-0.5, 1.0, 0.0);
+	glUniform3f(glGetUniformLocation(shaderID, "lightPos"),lightPos.x,lightPos.y,lightPos.z);
+	
+	glm::vec3 lightColor = glm::vec3(1.0, 1.0, 1.0);
+	glUniform3f(glGetUniformLocation(shaderID, "lightColor"),lightColor.x,lightColor.y,lightColor.z);
 
 	// No seu main(), ANTES do loop de renderização:
 	glfwSetCursorPosCallback(window, mouse_callback);
@@ -266,7 +292,6 @@ int main()
 			applyTransform(meshes[active_mesh], false);
 		}
         
-        glUniformMatrix4fv(glGetUniformLocation(shaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(shaderID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 		
 		// Atualização da matriz de view de acordo com as mudanças que ela sofreu via input
@@ -279,18 +304,6 @@ int main()
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 		renderMeshes(meshes, shaderID); // Renderiza cada mesh da cena.
-		
-		// Segundo: renderizar wireframe por cima
-		glUseProgram(wireframeShaderID);
-		glUniformMatrix4fv(glGetUniformLocation(wireframeShaderID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-		glUniformMatrix4fv(glGetUniformLocation(wireframeShaderID, "view"), 1, GL_FALSE, glm::value_ptr(view));
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		glLineWidth(1.5f);
-
-		renderMeshes(meshes, wireframeShaderID); // Renderiza cada mesh da cena.
-
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		glUseProgram(shaderID);
 
 		// Troca os buffers da tela
 		glfwSwapBuffers(window);
@@ -311,10 +324,10 @@ int main()
 void cameraHandler(GLFWwindow* window, Camera &camera, float deltaTime)
 {
 	// Configuração da movimentação da câmera via teclado (IKJL).
-	if(glfwGetKey(window,GLFW_KEY_I) == GLFW_PRESS) camera.processKeyboard("FORWARD",deltaTime);
-	if(glfwGetKey(window,GLFW_KEY_K) == GLFW_PRESS) camera.processKeyboard("BACKWARD",deltaTime);
-	if(glfwGetKey(window,GLFW_KEY_J) == GLFW_PRESS) camera.processKeyboard("LEFT",deltaTime);
-	if(glfwGetKey(window,GLFW_KEY_L) == GLFW_PRESS) camera.processKeyboard("RIGHT",deltaTime);
+	if(glfwGetKey(window,GLFW_KEY_W) == GLFW_PRESS) camera.processKeyboard("FORWARD",deltaTime);
+	if(glfwGetKey(window,GLFW_KEY_S) == GLFW_PRESS) camera.processKeyboard("BACKWARD",deltaTime);
+	if(glfwGetKey(window,GLFW_KEY_A) == GLFW_PRESS) camera.processKeyboard("LEFT",deltaTime);
+	if(glfwGetKey(window,GLFW_KEY_D) == GLFW_PRESS) camera.processKeyboard("RIGHT",deltaTime);
 
 	double xpos, ypos;
 	glfwGetCursorPos(window, &xpos, &ypos);
@@ -442,7 +455,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		perspective = !perspective;
 	}
 
-	if (key == GLFW_KEY_S && action == GLFW_PRESS)
+	if (key == GLFW_KEY_E && action == GLFW_PRESS)
 	{
 		scale = true;
 		rotateEnabled = false;
@@ -545,60 +558,19 @@ int setupShader()
 	return shaderProgram;
 }
 
-int setupWireframeShader()
-{
-	// Vertex shader
-	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &wireframeVertexShaderSource, NULL);
-	glCompileShader(vertexShader);
-	// Checando erros de compilação (exibição via log no terminal)
-	GLint success;
-	GLchar infoLog[512];
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
-		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::WIREFRAME_VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-	// Fragment shader
-	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &wireframeFragmentShaderSource, NULL);
-	glCompileShader(fragmentShader);
-	// Checando erros de compilação (exibição via log no terminal)
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
-		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::WIREFRAME_FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-	// Linkando os shaders e criando o identificador do programa de shader
-	GLuint shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
-	// Checando por erros de linkagem
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-	if (!success) {
-		glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::WIREFRAME_PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-	}
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
-
-	return shaderProgram;
-}
-
 // Esta função está bastante harcoded - objetivo é criar os buffers que armazenam a 
 // geometria de um triângulo
 // Apenas atributo coordenada nos vértices
 // 1 VBO com as coordenadas, VAO com apenas 1 ponteiro para atributo
 // A função retorna o identificador do VAO
-int loadSimpleOBJ(string filePATH, int &nVertices, int r, int g,int b)
+
+int loadSimpleOBJ(string filePATH, int &nVertices)
  {
     std::vector<glm::vec3> vertices;
-	std::vector<glm::vec2> texCoords;
-	std::vector<glm::vec3> normals;
+    std::vector<glm::vec2> texCoords;
+    std::vector<glm::vec3> normals;
     std::vector<GLfloat> vBuffer;
+    glm::vec3 color = glm::vec3(1.0, 0.0, 0.0);
 
     std::ifstream arqEntrada(filePATH.c_str());
     if (!arqEntrada.is_open()) 
@@ -636,20 +608,23 @@ int loadSimpleOBJ(string filePATH, int &nVertices, int r, int g,int b)
 		 {
             while (ssline >> word) 
 			{
-				int vi = 0;
+                int vi = 0, ti = 0, ni = 0;
                 std::istringstream ss(word);
                 std::string index;
 
                 if (std::getline(ss, index, '/')) vi = !index.empty() ? std::stoi(index) - 1 : 0;
-				if (std::getline(ss, index, '/')) { }
-				if (std::getline(ss, index)) { }
+                if (std::getline(ss, index, '/')) ti = !index.empty() ? std::stoi(index) - 1 : 0;
+                if (std::getline(ss, index)) ni = !index.empty() ? std::stoi(index) - 1 : 0;
 
                 vBuffer.push_back(vertices[vi].x);
                 vBuffer.push_back(vertices[vi].y);
                 vBuffer.push_back(vertices[vi].z);
-                vBuffer.push_back(r);
-                vBuffer.push_back(g);
-                vBuffer.push_back(b);
+                vBuffer.push_back(color.r);
+                vBuffer.push_back(color.g);
+                vBuffer.push_back(color.b);
+				vBuffer.push_back(normals[ni].x);
+                vBuffer.push_back(normals[ni].y);
+                vBuffer.push_back(normals[ni].z);
             }
         }
     }
@@ -665,16 +640,22 @@ int loadSimpleOBJ(string filePATH, int &nVertices, int r, int g,int b)
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
     
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
+	// Atributo: coordenada do vértice (x,y,z) - 3 valores
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), (GLvoid*)0);
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	// Atributo: cor do vértice (r, g, b) - 3 valores
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
     glEnableVertexAttribArray(1);
+
+	// Atributo: vetor normal no vértice (x, y, z) - 3 valores
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(2);
     
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-	nVertices = vBuffer.size() / 6;  // x, y, z, r, g, b (valores atualmente armazenados por vértice)
+	nVertices = vBuffer.size() / 9;  // x, y, z, r, g, b,nx,ny, nz (valores atualmente armazenados por vértice)
 
     return VAO;
 }
