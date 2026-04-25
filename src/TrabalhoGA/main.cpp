@@ -44,18 +44,22 @@ const GLchar* vertexShaderSource = R"glsl(#version 450
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 color;
 layout (location = 2) in vec3 normal;
+layout (location = 3) in vec2 texCoord;
+
 uniform mat4 model;
 uniform mat4 projection;
 uniform mat4 view;
+
 out vec4 finalColor;
 out vec3 fragPos;
 out vec3 scaledNormal;
+
 void main()
 {
-gl_Position = projection * view * model * vec4(position, 1.0);
-finalColor = vec4(color, 1.0);
-fragPos = vec3(model * vec4(position, 1.0)); 
-scaledNormal = vec3(model * vec4(normal, 1.0));
+    gl_Position = projection * view * model * vec4(position, 1.0);
+    finalColor = vec4(color, 1.0);
+    fragPos = vec3(model * vec4(position, 1.0)); 
+    scaledNormal = mat3(transpose(inverse(model))) * normal;
 }
 )glsl";
 
@@ -65,6 +69,10 @@ in vec4 finalColor;
 in vec3 fragPos;
 in vec3 scaledNormal;
 
+uniform bool isWireframe;
+uniform vec3 wireColor;
+uniform vec3 objectColor;
+
 // Propriedades da superfície/material
 uniform float ka;
 uniform float kd;
@@ -73,31 +81,41 @@ uniform float ks, q;
 // Propriedades da fonte de luz
 uniform vec3 lightPos;
 uniform vec3 lightColor;
-
-// Posicao da camera
 uniform vec3 cameraPos;
 
 out vec4 color;
 
 void main()
 {
-	// Parcela da luz ambiente
-	vec3 ambient = ka * lightColor;
+    // Parcela da luz ambiente
+    vec3 ambient = ka * lightColor;
 
-	// Parcela da reflexão difusa
-	vec3 N = normalize(scaledNormal);
-	vec3 L = normalize(lightPos - fragPos);
-	float diff = max(dot(N,L),0.0);
-	vec3 diffuse = kd * diff * lightColor;
+    // Parcela da reflexão difusa
+    vec3 N = normalize(scaledNormal);
+    vec3 L = normalize(lightPos - fragPos);
+    float diff = max(dot(N,L),0.0);
+    vec3 diffuse = kd * diff * lightColor;
 
-	//Coeficiente de reflexão especular
-	vec3 R = normalize(reflect(-L,N));
-	vec3 V = normalize(cameraPos - vec3(fragPos));
-	float spec = max(dot(R,V),0.0);
-	spec = pow(spec,q);
-	vec3 specular = ks * spec * lightColor;
+    //Coeficiente de reflexão especular
+    vec3 R = normalize(reflect(-L,N));
+    vec3 V = normalize(cameraPos - vec3(fragPos));
+    float spec = max(dot(R,V),0.0);
+    spec = pow(spec,q);
+    vec3 specular = ks * spec * lightColor;
 
-    color = (vec4(ambient,1) + vec4(diffuse,1))*finalColor + vec4(specular,1);
+    // Mistura a cor do vértice (branco) com a cor do objeto (C++)
+    vec4 actualColor = finalColor * vec4(objectColor, 1.0);
+
+    // Define qual será a cor base (preto se for wireframe, cor real se for sólido)
+    vec4 baseColor;
+    if (isWireframe) {
+        baseColor = vec4(wireColor, 1.0);
+    } else {
+        baseColor = actualColor;
+    }
+
+    // Aplica a iluminação na cor escolhida
+    color = (vec4(ambient, 1.0) + vec4(diffuse, 1.0)) * baseColor + vec4(specular, 1.0);
 }
 )glsl";
 
@@ -106,7 +124,7 @@ void main()
 bool axisX=true, axisY=false, axisZ=false, rotateEnabled = true, scale = false, translade = false, perspective = true;
 bool moveLight = false, changeKa = false, changeKd = false, changeKs = false, changeQ = false;
 int active_mesh = 0; //mesh selecionado para transformação (0 ou 1)
-
+bool showWireframe = false;
 
 //Instanciação da Camera
 Camera camera(glm::vec3(0.0, 0.0, -5.0), glm::vec3(0.0,1.0,0.0),90.0,0.0);
@@ -121,6 +139,7 @@ struct Mesh
 	glm::vec3 rotation;
 	glm::vec3 scale; 
 	int nVertices;
+	glm::vec3 color;
 };
 
 // Estrutura Light para controle da luz.
@@ -224,19 +243,21 @@ int main()
 
 	Mesh m1;
 
-	m1.VAO = loadSimpleOBJ("../assets/Suzanne.obj",m1.nVertices);
+	m1.VAO = loadSimpleOBJ("assets/Suzanne.obj",m1.nVertices);
 	m1.position = glm::vec3(-0.8, 0.0, 0.0);
 	m1.rotation = glm::vec3(0.0, 180.0, 0.0);
 	m1.scale = glm::vec3(0.5, 0.5, 0.5);
+	m1.color = glm::vec3(1.0, 0.0, 0.0); // Red
 
 	meshes.push_back(m1);
 
 	Mesh m2;
 
-	m2.VAO = loadSimpleOBJ("../assets/Suzanne.obj",m2.nVertices);
+	m2.VAO = loadSimpleOBJ("assets/Suzanne.obj",m2.nVertices);
 	m2.position = glm::vec3(0.8, 0.0, 0.0);
 	m2.rotation = glm::vec3(0.0, 180.0, 0.0);
 	m2.scale = glm::vec3(0.5, 0.5, 0.5);
+	m2.color = glm::vec3(0.0, 1.0, 0.0); // Green
 
 	meshes.push_back(m2);
 
@@ -273,8 +294,8 @@ int main()
 
         // Essas funções estão depreciadas, só vão funcionar se usarmos o 
         // OpenGL em modo "Compability" -- eu as deixo pra facilitar a visualização
-		glLineWidth(10);
-		glPointSize(10);
+		glLineWidth(1.0);
+		glPointSize(1.0);
 
 		// Configuração da projeção.
 		if (perspective) {
@@ -320,9 +341,23 @@ int main()
 
 		// Chamada de Desenho - DRAWCALL
 		// Primeiro: renderizar solido
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glUniform1i(glGetUniformLocation(shaderID, "isWireframe"), GL_FALSE);
+    renderMeshes(meshes, shaderID);
 
-		renderMeshes(meshes, shaderID); // Renderiza cada mesh da cena.
+    // 2. Se a opção estiver ativa, desenha as linhas por cima
+    if (showWireframe) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        
+        glEnable(GL_POLYGON_OFFSET_LINE);
+        glPolygonOffset(-1.0, -1.0); 
+        
+        glUniform1i(glGetUniformLocation(shaderID, "isWireframe"), GL_TRUE);
+        glUniform3f(glGetUniformLocation(shaderID, "wireColor"), 0.0f, 0.0f, 0.0f);
+        renderMeshes(meshes, shaderID);
+        
+        glDisable(GL_POLYGON_OFFSET_LINE);
+    }
 
 		// Troca os buffers da tela
 		glfwSwapBuffers(window);
@@ -484,6 +519,7 @@ void renderMeshes(std::vector<Mesh> &meshes, GLuint shaderID)
 		modelMesh = glm::scale(modelMesh, mesh.scale);
 		
 		glUniformMatrix4fv(glGetUniformLocation(shaderID, "model"), 1, GL_FALSE, glm::value_ptr(modelMesh));
+		glUniform3f(glGetUniformLocation(shaderID, "objectColor"), mesh.color.x, mesh.color.y, mesh.color.z);
 		
 		glBindVertexArray(mesh.VAO);
 		glDrawArrays(GL_TRIANGLES, 0, mesh.nVertices);
@@ -570,6 +606,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (key == GLFW_KEY_N && action == GLFW_PRESS) {
 		active_mesh = (active_mesh + 1) % 2;
 	}
+
+  if (key == GLFW_KEY_O && action == GLFW_PRESS) {
+    showWireframe = !showWireframe;
+  }
 }
 
 //Esta função está basntante hardcoded - objetivo é compilar e "buildar" um programa de
@@ -632,7 +672,7 @@ int loadSimpleOBJ(string filePATH, int &nVertices)
     std::vector<glm::vec2> texCoords;
     std::vector<glm::vec3> normals;
     std::vector<GLfloat> vBuffer;
-    glm::vec3 color = glm::vec3(1.0, 0.0, 0.0);
+    glm::vec3 color = glm::vec3(1.0, 1.0, 1.0);
 
     std::ifstream arqEntrada(filePATH.c_str());
     if (!arqEntrada.is_open()) 
@@ -681,12 +721,23 @@ int loadSimpleOBJ(string filePATH, int &nVertices)
                 vBuffer.push_back(vertices[vi].x);
                 vBuffer.push_back(vertices[vi].y);
                 vBuffer.push_back(vertices[vi].z);
-                vBuffer.push_back(color.r);
-                vBuffer.push_back(color.g);
-                vBuffer.push_back(color.b);
-				vBuffer.push_back(normals[ni].x);
-                vBuffer.push_back(normals[ni].y);
-                vBuffer.push_back(normals[ni].z);
+                
+                vBuffer.push_back(color.r); // Cor R
+                vBuffer.push_back(color.g); // Cor G
+                vBuffer.push_back(color.b); // Cor B
+                
+                // Trava de segurança para texturas
+                if (!texCoords.empty()) {
+                    vBuffer.push_back(texCoords[ti].s); 
+                    vBuffer.push_back(texCoords[ti].t); 
+                } else {
+                    vBuffer.push_back(0.0f); 
+                    vBuffer.push_back(0.0f); 
+                }
+
+                vBuffer.push_back(normals[ni].x);   // Normal X
+                vBuffer.push_back(normals[ni].y);   // Normal Y
+                vBuffer.push_back(normals[ni].z);   // Normal Z
             }
         }
     }
@@ -702,22 +753,30 @@ int loadSimpleOBJ(string filePATH, int &nVertices)
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
     
-	// Atributo: coordenada do vértice (x,y,z) - 3 valores
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), (GLvoid*)0);
+    // Única declaração de Stride (11 floats agora)
+    GLsizei stride = 11 * sizeof(GLfloat);
+
+    // 0: Posição
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)0);
     glEnableVertexAttribArray(0);
 
-	// Atributo: cor do vértice (r, g, b) - 3 valores
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+    // 1: Cor
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(3 * sizeof(GLfloat)));
     glEnableVertexAttribArray(1);
 
-	// Atributo: vetor normal no vértice (x, y, z) - 3 valores
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
+    // 2: Normal
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(8 * sizeof(GLfloat)));
     glEnableVertexAttribArray(2);
+
+    // 3: Coordenada de Textura
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(6 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(3);
     
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-	nVertices = vBuffer.size() / 9;  // x, y, z, r, g, b,nx,ny, nz (valores atualmente armazenados por vértice)
+    nVertices = vBuffer.size() / 11;
 
     return VAO;
+
 }
