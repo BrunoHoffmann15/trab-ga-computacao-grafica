@@ -244,7 +244,7 @@ int main()
 	Mesh m1;
 
 	m1.VAO = loadSimpleOBJ("assets/Suzanne.obj",m1.nVertices);
-	m1.position = glm::vec3(-0.8, 0.0, 0.0);
+	m1.position = glm::vec3(-1.0, 0.0, 0.0);
 	m1.rotation = glm::vec3(0.0, 180.0, 0.0);
 	m1.scale = glm::vec3(0.5, 0.5, 0.5);
 	m1.color = glm::vec3(1.0, 0.0, 0.0); // Red
@@ -253,13 +253,23 @@ int main()
 
 	Mesh m2;
 
-	m2.VAO = loadSimpleOBJ("assets/Suzanne.obj",m2.nVertices);
+	m2.VAO = loadSimpleOBJ("assets/bunny.obj",m2.nVertices);
 	m2.position = glm::vec3(0.8, 0.0, 0.0);
 	m2.rotation = glm::vec3(0.0, 180.0, 0.0);
-	m2.scale = glm::vec3(0.5, 0.5, 0.5);
-	m2.color = glm::vec3(0.0, 1.0, 0.0); // Green
+	m2.scale = glm::vec3(0.7, 0.7, 0.7);
+	m2.color = glm::vec3(0.5, 0.5, 1.0); // Violet
 
 	meshes.push_back(m2);
+
+  Mesh m3;
+
+	m3.VAO = loadSimpleOBJ("assets/erato/erato.obj",m3.nVertices);
+	m3.position = glm::vec3(0.0, -2.0, -2.0); // Coloquei um pouco mais para trás para evitar que fique exatamente no mesmo plano dos outros dois meshes, o que pode causar problemas de Z-fighting
+	m3.rotation = glm::vec3(0.0, 180.0, 0.0);
+	m3.scale = glm::vec3(0.09, 0.09, 0.09);
+	m3.color = glm::vec3(1.0, 0.5, 0.5); // Pink
+
+	meshes.push_back(m3);
 
 	// Mandando as infos de iluminação para o shader
 	float ka = 0.2, kd = 0.5, ks = 0.5, q = 10.0;
@@ -604,7 +614,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 	// Muda o mesh ativo para transformação (tecla N) - só tem 2 meshes, então alterna entre 0 e 1
 	if (key == GLFW_KEY_N && action == GLFW_PRESS) {
-		active_mesh = (active_mesh + 1) % 2;
+		active_mesh = (active_mesh + 1) % 3;
 	}
 
   if (key == GLFW_KEY_O && action == GLFW_PRESS) {
