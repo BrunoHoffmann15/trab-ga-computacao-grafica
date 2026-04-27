@@ -8,11 +8,11 @@
 
 **Leitura do .obj**
 
-[ ] Buscar um `.obj` para usar;
+[x] Buscar um `.obj` para usar;
 
-[ ] Fazer o parse do arquivo `.obj` - Atributos: deve recuperar obrigatoriamente vértices, faces (apenas triângulos), normais (vn) e coordenadas de textura (vt);
+[x] Fazer o parse do arquivo `.obj` - Atributos: deve recuperar obrigatoriamente vértices, faces (apenas triângulos), normais (vn) e coordenadas de textura (vt);
 
-[ ] Gerenciamento de Buffers: criação e utilização correta de VAO e VBOs (EBO opcional);
+[x] Gerenciamento de Buffers: criação e utilização correta de VAO e VBOs (EBO opcional);
 
 **Controle dos Objetos**
 
@@ -46,7 +46,7 @@ Shaders
 [x] Superfície: as propriedades de refletância do material (ka, kd e ks) devem ser configuráveis
 manualmente.
 
-[ ] Modos de visualização: sólido (com iluminação aplicada) e desenho de wireframe sobreposto à
+[x] Modos de visualização: sólido (com iluminação aplicada) e desenho de wireframe sobreposto à
 geometria sólida, quando o usuário optar.
 
 ## MVP2

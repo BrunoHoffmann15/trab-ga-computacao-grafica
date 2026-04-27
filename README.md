@@ -69,9 +69,11 @@ A aplicação abrirá uma janela OpenGL exibindo dois modelos Suzanne com ilumin
 
 ### Iluminação
 - **4**: Modo movimento da luz
+- **X/Y/Z**: Selecionar eixo para movimentar (X, Y ou Z)
 - **5**: Modo ajuste de ka (ambiente)
 - **6**: Modo ajuste de kd (difusa)
 - **7**: Modo ajuste de ks (especular)
+- **Setas para cima/baixo**: Movimentar a luz para cima ou baixo, ou modificar os valores das variáveis.
 
 ### Visualização
 - **P**: Alternar entre projeção perspectiva e ortográfica

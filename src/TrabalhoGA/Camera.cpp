@@ -37,10 +37,10 @@ void Camera::processMouseMovement(float xoffset, float yoffset, bool constrainPi
     // 3. Trava o eixo Pitch para evitar que a tela vire de ponta cabeça
     if (constrainPitch)
     {
-        if (pitch > 89.0f)
-            pitch = 89.0f;
-        if (pitch < -89.0f)
-            pitch = -89.0f;
+        if (pitch > 20.0f)
+            pitch = 20.0f;
+        if (pitch < -20.0f)
+            pitch = -20.0f;
     }
 
     // 4. Atualiza os vetores Front, Right e Up usando a função que você já criou

@@ -28,12 +28,32 @@ using namespace std;
 // Camera
 #include "Camera.h"
 
+// Estrutura Mesh para controle de objeto;
+struct Mesh 
+{
+    GLuint VAO;
+	GLuint VBO;
+	glm::vec3 position;
+	glm::vec3 rotation;
+	glm::vec3 scale; 
+	int nVertices;
+	glm::vec3 color;
+};
+
+// Estrutura Light para controle da luz.
+struct Light {
+	glm::vec3 position;
+	glm::vec3 color;
+	float ka, kd, ks;
+};
+
+
 // Protótipo da função de callback de teclado
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 
 // Protótipos das funções
 int setupShader();
-int loadSimpleOBJ(string filePATH, int &nVertices);
+Mesh loadSimpleOBJ(string filePATH);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 
 // Dimensões da janela (pode ser alterado em tempo de execução)
@@ -131,23 +151,6 @@ Camera camera(glm::vec3(0.0, 0.0, -5.0), glm::vec3(0.0,1.0,0.0),90.0,0.0);
 float deltaTime = 0.0;
 float lastFrame = 0.0; 
 
-// Estrutura Mesh para controle de objeto;
-struct Mesh 
-{
-    GLuint VAO;
-	glm::vec3 position;
-	glm::vec3 rotation;
-	glm::vec3 scale; 
-	int nVertices;
-	glm::vec3 color;
-};
-
-// Estrutura Light para controle da luz.
-struct Light {
-	glm::vec3 position;
-	glm::vec3 color;
-	float ka, kd, ks;
-};
 
 // Posição inicial no centro da tela
 float lastX = WIDTH / 2.0f;  // 300.0f
@@ -175,19 +178,6 @@ int main()
 {
 	// Inicialização da GLFW
 	glfwInit();
-
-	//Muita atenção aqui: alguns ambientes não aceitam essas configurações
-	//Você deve adaptar para a versão do OpenGL suportada por sua placa
-	//Sugestão: comente essas linhas de código para desobrir a versão e
-	//depois atualize (por exemplo: 4.5 com 4 e 5)
-	//glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	//glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-	//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-	//Essencial para computadores da Apple
-//#ifdef __APPLE__
-//	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-//#endif
 
 	// Criação da janela GLFW
 	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Exercício 2 - Bel Cogo e Bruno Hoffmann", nullptr, nullptr);
@@ -224,11 +214,9 @@ int main()
 	glm::mat4 model = glm::mat4(1); //matriz identidade;
   	model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 	glUniformMatrix4fv(glGetUniformLocation(shaderID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
     //-----------------
     // Matriz de projeção
-    //glm::mat4 projection = glm::ortho(-3.0, 3.0, -3.0, 3.0, 0.1, 100.0);
-    //glUniformMatrix4fv(glGetUniformLocation(shaderID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-	
     glm::mat4 projection = glm::perspective(glm::radians(45.0f),(float)WIDTH/(float)HEIGHT,0.1f,100.0f);
     glUniformMatrix4fv(glGetUniformLocation(shaderID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
     
@@ -241,9 +229,7 @@ int main()
 	// Definição dos objetos e seus atributos.
 	std::vector<Mesh> meshes;
 
-	Mesh m1;
-
-	m1.VAO = loadSimpleOBJ("assets/Suzanne.obj",m1.nVertices);
+	Mesh m1 = loadSimpleOBJ("../assets/Suzanne.obj");
 	m1.position = glm::vec3(-1.0, 0.0, 0.0);
 	m1.rotation = glm::vec3(0.0, 180.0, 0.0);
 	m1.scale = glm::vec3(0.5, 0.5, 0.5);
@@ -251,25 +237,13 @@ int main()
 
 	meshes.push_back(m1);
 
-	Mesh m2;
-
-	m2.VAO = loadSimpleOBJ("assets/bunny.obj",m2.nVertices);
+	Mesh m2 = loadSimpleOBJ("../assets/bunny.obj");
 	m2.position = glm::vec3(0.8, 0.0, 0.0);
 	m2.rotation = glm::vec3(0.0, 180.0, 0.0);
 	m2.scale = glm::vec3(0.7, 0.7, 0.7);
 	m2.color = glm::vec3(0.5, 0.5, 1.0); // Violet
 
 	meshes.push_back(m2);
-
-  Mesh m3;
-
-	m3.VAO = loadSimpleOBJ("assets/erato/erato.obj",m3.nVertices);
-	m3.position = glm::vec3(0.0, -2.0, -2.0); // Coloquei um pouco mais para trás para evitar que fique exatamente no mesmo plano dos outros dois meshes, o que pode causar problemas de Z-fighting
-	m3.rotation = glm::vec3(0.0, 180.0, 0.0);
-	m3.scale = glm::vec3(0.09, 0.09, 0.09);
-	m3.color = glm::vec3(1.0, 0.5, 0.5); // Pink
-
-	meshes.push_back(m3);
 
 	// Mandando as infos de iluminação para o shader
 	float ka = 0.2, kd = 0.5, ks = 0.5, q = 10.0;
@@ -281,10 +255,10 @@ int main()
 	light.kd = kd;
 	light.ks = ks;
 
-	// No seu main(), ANTES do loop de renderização:
+	// Método para captura do movimento do mouse.
 	glfwSetCursorPosCallback(window, mouse_callback);
 
-	// Opcional, mas recomendado para jogos FPS: prende o cursor dentro da janela e o esconde
+	// Método para travar o cursor no centro da janela e não mostrar o cursor.
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	// Loop da aplicação - "game loop"
@@ -414,23 +388,19 @@ void cameraHandler(GLFWwindow* window, Camera &camera, float deltaTime)
 
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
+	// Covertendo os valores de posição do mouse para float.
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
 
-    if (firstMouse)
-    {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-
+	// Configuração da movimentação da câmera via mouse.
     float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // Invertido, pois as coordenadas Y vão do topo (0) para baixo (HEIGHT)
+    float yoffset = lastY - ypos;
 
+	// Atualizando a última posição do mouse para o próximo cálculo de offset.
     lastX = xpos;
     lastY = ypos;
 
-    // Supondo que sua instância de câmera se chame 'camera'
+    // Processa o movimento do mouse para atualizar a orientação da câmera.
     camera.processMouseMovement(xoffset, yoffset);
 }
 
@@ -467,8 +437,7 @@ void applyTransform(Mesh &mesh, bool shouldGoUp)
 {
 	if (rotateEnabled) { // Caso de rotação.
 		rotateMesh(mesh, shouldGoUp);
-	}
-	else if (scale) { // Caso de escalar.
+	} else if (scale) { // Caso de escalar.
 		scaleMesh(mesh, shouldGoUp);
 	} else if (translade) { // Caso de translação.
 		transladeMesh(mesh, shouldGoUp);
@@ -670,13 +639,9 @@ int setupShader()
 	return shaderProgram;
 }
 
-// Esta função está bastante harcoded - objetivo é criar os buffers que armazenam a 
-// geometria de um triângulo
-// Apenas atributo coordenada nos vértices
-// 1 VBO com as coordenadas, VAO com apenas 1 ponteiro para atributo
-// A função retorna o identificador do VAO
-
-int loadSimpleOBJ(string filePATH, int &nVertices)
+// Função para carregar um arquivo .obj simples;
+// Cria um Mesh a partir do arquivo, gerando o VAO e VBO correspondentes, e retorna esse Mesh para ser renderizado posteriormente.
+Mesh loadSimpleOBJ(string filePATH)
  {
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec2> texCoords;
@@ -688,8 +653,8 @@ int loadSimpleOBJ(string filePATH, int &nVertices)
     if (!arqEntrada.is_open()) 
 	{
         std::cerr << "Erro ao tentar ler o arquivo " << filePATH << std::endl;
-        return -1;
-    }
+		exit(EXIT_FAILURE);
+	}
 
     std::string line;
     while (std::getline(arqEntrada, line)) 
@@ -785,8 +750,11 @@ int loadSimpleOBJ(string filePATH, int &nVertices)
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    nVertices = vBuffer.size() / 11;
+	Mesh mesh;
 
-    return VAO;
+	mesh.VAO = VAO;
+	mesh.VBO = VBO;
+	mesh.nVertices = vBuffer.size() / 11;
 
+    return mesh;
 }
