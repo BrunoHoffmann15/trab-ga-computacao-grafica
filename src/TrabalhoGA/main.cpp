@@ -325,26 +325,26 @@ int main()
 
 		// Chamada de Desenho - DRAWCALL
 		// Primeiro: renderizar solido
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glUniform1i(glGetUniformLocation(shaderID, "isWireframe"), GL_FALSE);
-    renderMeshes(meshes, shaderID);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glUniform1i(glGetUniformLocation(shaderID, "isWireframe"), GL_FALSE);
+		renderMeshes(meshes, shaderID);
 
-    // 2. Se a opção estiver ativa, desenha as linhas por cima
-    if (showWireframe) {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        
-        glEnable(GL_POLYGON_OFFSET_LINE);
-        glPolygonOffset(-1.0, -1.0); 
-        
-        glUniform1i(glGetUniformLocation(shaderID, "isWireframe"), GL_TRUE);
-        glUniform3f(glGetUniformLocation(shaderID, "wireColor"), 0.0f, 0.0f, 0.0f);
-        renderMeshes(meshes, shaderID);
-        
-        glDisable(GL_POLYGON_OFFSET_LINE);
-    }
+		// 2. Se a opção estiver ativa, desenha as linhas por cima
+		if (showWireframe) {
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			
+			glEnable(GL_POLYGON_OFFSET_LINE);
+			glPolygonOffset(-1.0, -1.0); 
+			
+			glUniform1i(glGetUniformLocation(shaderID, "isWireframe"), GL_TRUE);
+			glUniform3f(glGetUniformLocation(shaderID, "wireColor"), 0.0f, 0.0f, 0.0f);
+			renderMeshes(meshes, shaderID);
+			
+			glDisable(GL_POLYGON_OFFSET_LINE);
+		}
 
-		// Troca os buffers da tela
-		glfwSwapBuffers(window);
+			// Troca os buffers da tela
+			glfwSwapBuffers(window);
 	}
 
 
@@ -408,6 +408,7 @@ void applyLightChange(GLFWwindow* window, Light &light, bool shouldGoUp)
 {
 	float delta = 0.1f * (shouldGoUp ? 1 : -1);
 
+	// Movimenta a luz no sentido positivo ou negativo do eixo selecionado (X, Y ou Z)
 	if (moveLight) {
 		if (axisX)
 			light.position.x += delta;
@@ -417,6 +418,7 @@ void applyLightChange(GLFWwindow* window, Light &light, bool shouldGoUp)
 			light.position.z += delta;
 	}
 
+	// Aumenta ou diminui os coeficientes de iluminação (ka, kd, ks) dependendo do valor de "shouldGoUp"
 	if (changeKa) {
 		light.ka += delta * 0.1f;
 		if (light.ka < 0.0f) light.ka = 0.0f; // Evita valores negativos
@@ -586,9 +588,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		active_mesh = (active_mesh + 1) % 3;
 	}
 
-  if (key == GLFW_KEY_O && action == GLFW_PRESS) {
-    showWireframe = !showWireframe;
-  }
+	// Ativa ou desativa a visualização em modo wireframe (tecla O).
+	if (key == GLFW_KEY_O && action == GLFW_PRESS) {
+		showWireframe = !showWireframe;
+	}
 }
 
 //Esta função está basntante hardcoded - objetivo é compilar e "buildar" um programa de
