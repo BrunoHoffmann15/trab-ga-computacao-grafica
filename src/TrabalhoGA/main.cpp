@@ -585,7 +585,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 	// Muda o mesh ativo para transformação (tecla N) - só tem 2 meshes, então alterna entre 0 e 1
 	if (key == GLFW_KEY_N && action == GLFW_PRESS) {
-		active_mesh = (active_mesh + 1) % 3;
+		active_mesh = (active_mesh + 1) % 2;
 	}
 
 	// Ativa ou desativa a visualização em modo wireframe (tecla O).
