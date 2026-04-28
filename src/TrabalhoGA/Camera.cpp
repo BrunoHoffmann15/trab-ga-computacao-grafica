@@ -43,7 +43,7 @@ void Camera::processMouseMovement(float xoffset, float yoffset, bool constrainPi
             pitch = -20.0f;
     }
 
-    // 4. Atualiza os vetores Front, Right e Up usando a função que você já criou
+    // 4. Atualiza os vetores Front, Right e Up.
     updateCameraVectors();
 }
 
