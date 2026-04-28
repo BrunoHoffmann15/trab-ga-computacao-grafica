@@ -315,7 +315,7 @@ int main()
 		glUniform1f(glGetUniformLocation(shaderID, "ks"),light.ks);
 		glUniform1f(glGetUniformLocation(shaderID, "q"),q);
 
-        
+    
 		glUniformMatrix4fv(glGetUniformLocation(shaderID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 		
 		// Atualização da matriz de view de acordo com as mudanças que ela sofreu via input
